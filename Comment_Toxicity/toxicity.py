@@ -1,10 +1,13 @@
 import os
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 from tensorflow.keras.layers import TextVectorization
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Bidirectional, Embedding, LSTM
+from tensorflow.keras.metrics import Precision, Recall, CategoricalAccuracy
 
 
 # load data into a dataframe
@@ -75,4 +78,21 @@ print(model.summary())
 model.compile(optimizer='adam', loss='binary_crossentropy', metrics= ['accuracy'])
 history = model.fit(train, epochs=1, validation_data=val)
 
-# make predictions
+
+# evaluate the model
+pre = Precision()
+re = Recall()
+acc = CategoricalAccuracy()
+
+for batch in test.as_numpy_iterator():
+    X_true, y_true = batch
+    yhat = model.predict(X_true)
+
+    y_true = y_true.flatten()
+    yhat = yhat.flatten()
+
+    pre.update_state(y_true, yhat)
+    re.update_state(y_true, yhat)
+    acc.update_state(y_true, yhat)
+
+print(f'Precision: {pre.result().numpy()}, Recall: {re.result().numpy()}, Accuracy: {acc.result().numpy()}')
