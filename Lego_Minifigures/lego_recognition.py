@@ -152,3 +152,79 @@ labels = np.argmax(predictions, axis=1)
 
 print(test_generator[0][1])
 print(labels[:4])
+
+
+# apply transfer learning to increase model performance
+vgg_model = tf.keras.applications.vgg16.VGG16()
+# view new models summary
+print(vgg_model.summary())
+
+# convert model to sequential model
+# remove last layer from model
+model = keras.models.Sequential()
+for layer in vgg_model.layers[0:-1]:
+    model.add(layer)
+
+
+# set layer trainable to value as we don't
+# want to retrain the model layers
+for layer in model.layers:
+    layer.trainable = False
+
+model.add(tf.keras.layers.Dense(5))
+print(model.summary())
+
+# loss and optimizer
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics='accuracy')
+
+# get preprocessing function of model
+preprocess_input = tf.keras.applications.vgg16.preprocess_input
+train_gen = keras.preprocessing.image.ImageDataGenerator(preprocessing_function=preprocess_input)
+valid_gen = keras.preprocessing.image.ImageDataGenerator(preprocessing_function=preprocess_input)
+test_gen = keras.preprocessing.image.ImageDataGenerator(preprocessing_function=preprocess_input)
+
+train_batches = train_gen.flow_from_directory(
+    'lego/star-wars-images/train',
+    target_size=(224, 224),
+    class_mode='sparse',
+    batch_size=4,
+    shuffle=True,
+    color_mode="rgb",
+    classes=names
+)
+
+val_batches = valid_gen.flow_from_directory(
+    'lego/star-wars-images/val',
+    target_size=(224, 224),
+    class_mode='sparse',
+    batch_size=4,
+    shuffle=True,
+    color_mode="rgb",
+    classes=names
+)
+
+test_batches = test_gen.flow_from_directory(
+    'lego/star-wars-images/test',
+    target_size=(224, 224),
+    class_mode='sparse',
+    batch_size=4,
+    shuffle=False,
+    color_mode="rgb",
+    classes=names
+)
+
+
+epochs = 30
+
+early_stopping = keras.callbacks.EarlyStopping(
+    monitor="val_loss",
+    patience=5,
+    verbose=2
+)
+
+model.fit(train_batches, validation_data=val_batches,
+          callbacks=[early_stopping],
+          epochs=epochs, verbose=2)
+
+model.evaluate(test_batches, verbose=2)
+
